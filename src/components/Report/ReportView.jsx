@@ -1,12 +1,14 @@
 import { useRef, useState, useEffect, useMemo } from 'react'
 import PersonIdTopSheetTable from '../Tables/PersonIdTopSheetTable'
 import AllAccountTable from '../Tables/AllAccountTable'
+import BelowHundredTable from '../Tables/BelowHundredTable'
 import ActionButtons from '../Buttons/ActionButtons'
 import './ReportView.css'
 
 const TABS = [
   { id: 'personidtopsheet', label: 'Top Sheet' },
   { id: 'allaccount', label: 'All Account' },
+  { id: 'belowhundred', label: 'Below 100 Collection' },
 ]
 
 function ReportView({ data, overdueData, activeTab, onTabChange, onReset }) {
@@ -45,6 +47,9 @@ function ReportView({ data, overdueData, activeTab, onTabChange, onReset }) {
     }
     if (activeTab === 'allaccount') {
       return <AllAccountTable data={{ accountDetails }} overdueData={overdueData} />
+    }
+    if (activeTab === 'belowhundred') {
+      return <BelowHundredTable data={{ accountDetails }} overdueData={overdueData} />
     }
     return null
   }
