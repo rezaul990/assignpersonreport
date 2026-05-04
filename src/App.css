@@ -1,0 +1,47 @@
+.app {
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.developer-credit-top {
+  background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+  color: #ffffff;
+  padding: 28px 24px;
+  text-align: center;
+  font-size: 26px;
+  font-weight: 900;
+  letter-spacing: 1px;
+  box-shadow: 0 8px 24px rgba(220, 38, 38, 0.4);
+  border-bottom: 4px solid #991b1b;
+}
+
+.developer-credit-top span {
+  display: inline-block;
+  text-transform: uppercase;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.app > :not(.developer-credit-top):not(.developer-credit-bottom) {
+  flex: 1;
+}
+
+.developer-credit-bottom {
+  background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+  color: #ffffff;
+  padding: 28px 24px;
+  text-align: center;
+  font-size: 26px;
+  font-weight: 900;
+  letter-spacing: 1px;
+  box-shadow: 0 -8px 24px rgba(220, 38, 38, 0.4);
+  border-top: 4px solid #991b1b;
+  margin-top: auto;
+}
+
+.developer-credit-bottom span {
+  display: inline-block;
+  text-transform: uppercase;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+}
