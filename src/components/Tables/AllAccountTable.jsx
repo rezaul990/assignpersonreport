@@ -25,9 +25,12 @@ function AllAccountTable({ data, overdueData }) {
   }
 
   let totalTarget = 0, totalAchieve = 0, totalOverdue = 0
+  let totalAdvance = 0, totalCollection = 0
   accounts.forEach(acc => {
     totalTarget += parseAmt(acc.collectionTarget)
     totalAchieve += parseAmt(acc.collectionAchieve)
+    totalAdvance += parseAmt(acc.collectionAdvance)
+    totalCollection += parseAmt(acc.totalCollection)
     if (hasOverdue && acc.invoiceNo) totalOverdue += overdueData.get(String(acc.invoiceNo).trim()) || 0
   })
 
@@ -50,6 +53,8 @@ function AllAccountTable({ data, overdueData }) {
             <th style={{ textAlign: 'right' }}>Per Month Schedule</th>
             <th style={{ textAlign: 'right' }}>Collection Target</th>
             <th style={{ textAlign: 'right' }}>Collection Achieve</th>
+            <th style={{ textAlign: 'right' }}>Collection Advance</th>
+            <th style={{ textAlign: 'right' }}>Total Collection</th>
             {hasOverdue && <th style={{ textAlign: 'right' }}>Overdue Amount</th>}
           </tr>
         </thead>
@@ -75,6 +80,8 @@ function AllAccountTable({ data, overdueData }) {
                 <td className="amt-cell" style={{ textAlign: 'right', color: achieve > 0 ? '#059669' : '#94a3b8', fontWeight: achieve > 0 ? 700 : 500 }}>
                   {fmt(achieve)}
                 </td>
+                <td className="amt-cell" style={{ textAlign: 'right', color: '#059669' }}>{fmt(parseAmt(acc.collectionAdvance))}</td>
+                <td className="amt-cell" style={{ textAlign: 'right', fontWeight: 700 }}>{fmt(parseAmt(acc.totalCollection))}</td>
                 {hasOverdue && (
                   <td className="amt-cell" style={{ textAlign: 'right', color: overdue > 0 ? '#b91c1c' : '#94a3b8', fontWeight: overdue > 0 ? 700 : 500 }}>
                     {overdue > 0 ? fmt(overdue) : '-'}
@@ -89,6 +96,8 @@ function AllAccountTable({ data, overdueData }) {
             </td>
             <td className="amt-cell" style={{ textAlign: 'right' }}>{fmt(totalTarget)}</td>
             <td className="amt-cell" style={{ textAlign: 'right' }}>{fmt(totalAchieve)}</td>
+            <td className="amt-cell" style={{ textAlign: 'right', color: '#059669' }}>{fmt(totalAdvance)}</td>
+            <td className="amt-cell" style={{ textAlign: 'right', fontWeight: 700 }}>{fmt(totalCollection)}</td>
             {hasOverdue && <td className="amt-cell" style={{ textAlign: 'right' }}>{fmt(totalOverdue)}</td>}
           </tr>
         </tbody>

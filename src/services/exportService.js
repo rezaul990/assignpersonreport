@@ -286,6 +286,8 @@ function addAllAccountSheet(wb, accountDetails, sheetName, overdueData) {
       'Per Month Schedule': parseFloat(parseAmt(acc.perMonthSchedule).toFixed(2)),
       'Collection Target': parseFloat(parseAmt(acc.collectionTarget).toFixed(2)),
       'Collection Achieve': parseFloat(parseAmt(acc.collectionAchieve).toFixed(2)),
+      'Collection Advance': parseFloat(parseAmt(acc.collectionAdvance).toFixed(2)),
+      'Total Collection': parseFloat(parseAmt(acc.totalCollection).toFixed(2)),
     }
     if (hasOverdue) {
       const key = acc.invoiceNo ? String(acc.invoiceNo).trim() : ''
@@ -295,9 +297,12 @@ function addAllAccountSheet(wb, accountDetails, sheetName, overdueData) {
   })
 
   let totalTarget = 0, totalAchieve = 0, totalOverdue = 0
+  let totalAdvance = 0, totalCollection = 0
   accountDetails.forEach(acc => {
     totalTarget += parseAmt(acc.collectionTarget)
     totalAchieve += parseAmt(acc.collectionAchieve)
+    totalAdvance += parseAmt(acc.collectionAdvance)
+    totalCollection += parseAmt(acc.totalCollection)
     if (hasOverdue && acc.invoiceNo) totalOverdue += overdueData.get(String(acc.invoiceNo).trim()) || 0
   })
 
@@ -309,6 +314,8 @@ function addAllAccountSheet(wb, accountDetails, sheetName, overdueData) {
     'Per Month Schedule': '',
     'Collection Target': parseFloat(totalTarget.toFixed(2)),
     'Collection Achieve': parseFloat(totalAchieve.toFixed(2)),
+    'Collection Advance': parseFloat(totalAdvance.toFixed(2)),
+    'Total Collection': parseFloat(totalCollection.toFixed(2)),
   }
   if (hasOverdue) totalRow['Overdue Amount'] = parseFloat(totalOverdue.toFixed(2))
   wsData.push(totalRow)
@@ -317,7 +324,7 @@ function addAllAccountSheet(wb, accountDetails, sheetName, overdueData) {
   ws['!cols'] = [
     { wch: 6 }, { wch: 14 }, { wch: 14 }, { wch: 24 }, { wch: 16 },
     { wch: 22 }, { wch: 18 }, { wch: 16 }, { wch: 18 }, { wch: 12 },
-    { wch: 12 }, { wch: 18 }, { wch: 18 }, { wch: 18 },
+    { wch: 12 }, { wch: 18 }, { wch: 18 }, { wch: 18 }, { wch: 18 },
     ...(hasOverdue ? [{ wch: 16 }] : []),
   ]
   XLSX.utils.book_append_sheet(wb, ws, sheetName)

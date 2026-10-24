@@ -43,7 +43,9 @@ export function parseOverdueData(rows) {
 
 export function parseExcelData(rows) {
   const HEADER_ROW_INDEX = 5
-  const collectionCol = 20 // Column U
+  const collectionCol = 20 // Column U - Collection Achieve
+  const collectionAdvanceCol = 22 // Column W - Collection Advance
+  const totalCollectionCol = 23 // Column X - Total Collection
   const invoiceDateCol = 14 // Column O
 
   if (!rows[HEADER_ROW_INDEX] || rows[HEADER_ROW_INDEX].length === 0) {
@@ -64,6 +66,7 @@ export function parseExcelData(rows) {
 
     const plaza = row[plazaCol]
     const rawCollection = row[collectionCol]
+    const rawAdvance = row[collectionAdvanceCol]
     const invoiceDate = invoiceDateCol !== -1 ? row[invoiceDateCol] : null
 
     let collection = 0
@@ -72,22 +75,30 @@ export function parseExcelData(rows) {
       collection = parseFloat(cleaned) || 0
     }
 
+    let advance = 0
+    if (rawAdvance != null && rawAdvance !== '') {
+      const cleaned = String(rawAdvance).replace(/[,\s]/g, '').trim()
+      advance = parseFloat(cleaned) || 0
+    }
+
     if (!plaza || String(plaza).toLowerCase().trim() === 'plaza') continue
 
     allAccountDetails.push({
-      division: row[2] || '',
-      area: row[3] || '',
-      plaza: plaza,
-      accountNo: row[6] || '',
-      customerName: row[7] || '',
-      productCategory: row[8] || '',
-      assignPersonId: row[10] || '',
-      invoiceNo: row[13] || '',
-      invoiceDate: invoiceDate,
-      maturedDate: row[15] || '',
-      perMonthSchedule: row[16] || '',
-      collectionTarget: row[18] || '',
-      collectionAchieve: collection,
+      division: row[2] || '',           // Column C
+      area: row[3] || '',              // Column D
+      plaza: plaza,                    // Column E (by header lookup)
+      accountNo: row[5] || '',         // Column F
+      customerName: row[6] || '',      // Column G
+      productCategory: row[7] || '',   // Column H
+      assignPersonId: row[8] || '',    // Column I
+      invoiceNo: row[13] || '',        // Column N
+      invoiceDate: invoiceDate,        // Column O
+      maturedDate: row[15] || '',      // Column P
+      perMonthSchedule: row[16] || '', // Column Q
+      collectionTarget: row[18] || '', // Column S
+      collectionAchieve: collection,   // Column U
+      collectionAdvance: advance,     // Column W
+      totalCollection: row[totalCollectionCol] != null ? row[totalCollectionCol] : (collection + advance), // Column X
     })
   }
 
