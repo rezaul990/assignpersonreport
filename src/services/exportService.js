@@ -139,7 +139,7 @@ function addPersonIdTopSheet(wb, accountDetails, sheetName, overdueData) {
     const key = `${plaza}|||${personId}`
 
     if (!personGroups[key]) {
-      personGroups[key] = { plaza, personId, totalQty: 0, collectedQty: 0, targetAmount: 0, achieveAmount: 0, overdueAmount: 0 }
+      personGroups[key] = { plaza, personId, totalQty: 0, collectedQty: 0, targetAmount: 0, achieveAmount: 0, overdueAmount: 0, noColl2025: 0, noColl2026: 0 }
     }
 
     personGroups[key].totalQty++
@@ -156,6 +156,10 @@ function addPersonIdTopSheet(wb, accountDetails, sheetName, overdueData) {
     personGroups[key].targetAmount += target
     personGroups[key].achieveAmount += achieve
     if (achieve > 0) personGroups[key].collectedQty++
+
+    const invYear = account.invoiceYear
+    if (achieve === 0 && invYear === 2025) personGroups[key].noColl2025++
+    if (achieve === 0 && invYear === 2026) personGroups[key].noColl2026++
 
     if (hasOverdue && account.invoiceNo) {
       personGroups[key].overdueAmount += overdueData.get(String(account.invoiceNo).trim()) || 0
@@ -189,7 +193,9 @@ function addPersonIdTopSheet(wb, accountDetails, sheetName, overdueData) {
         'Coll %': person.percentage + '%',
         'Collection Target Amount': parseFloat(person.targetAmount.toFixed(2)),
         'Collection Achieve Amount': parseFloat(person.achieveAmount.toFixed(2)),
-        'Coll Amount %': person.amountPercentage + '%',
+        'Ach %': person.amountPercentage + '%',
+        '2025 No Coll Qty': person.noColl2025,
+        '2026 No Coll Qty': person.noColl2026,
       }
       if (hasOverdue) row['Overdue Amount'] = parseFloat(person.overdueAmount.toFixed(2))
       wsData.push(row)
@@ -199,10 +205,12 @@ function addPersonIdTopSheet(wb, accountDetails, sheetName, overdueData) {
       totalQty: acc.totalQty + p.totalQty,
       collectedQty: acc.collectedQty + p.collectedQty,
       notCollectedQty: acc.notCollectedQty + p.notCollectedQty,
+      noColl2025: acc.noColl2025 + p.noColl2025,
+      noColl2026: acc.noColl2026 + p.noColl2026,
       targetAmount: acc.targetAmount + p.targetAmount,
       achieveAmount: acc.achieveAmount + p.achieveAmount,
       overdueAmount: acc.overdueAmount + p.overdueAmount,
-    }), { totalQty: 0, collectedQty: 0, notCollectedQty: 0, targetAmount: 0, achieveAmount: 0, overdueAmount: 0 })
+    }), { totalQty: 0, collectedQty: 0, notCollectedQty: 0, noColl2025: 0, noColl2026: 0, targetAmount: 0, achieveAmount: 0, overdueAmount: 0 })
 
     const subRow = {
       'Plaza Name': `${plaza} Subtotal`,
@@ -213,7 +221,9 @@ function addPersonIdTopSheet(wb, accountDetails, sheetName, overdueData) {
       'Coll %': (sub.totalQty > 0 ? ((sub.collectedQty / sub.totalQty) * 100).toFixed(2) : '0.00') + '%',
       'Collection Target Amount': parseFloat(sub.targetAmount.toFixed(2)),
       'Collection Achieve Amount': parseFloat(sub.achieveAmount.toFixed(2)),
-      'Coll Amount %': (sub.targetAmount > 0 ? ((sub.achieveAmount / sub.targetAmount) * 100).toFixed(2) : '0.00') + '%',
+      'Ach %': (sub.targetAmount > 0 ? ((sub.achieveAmount / sub.targetAmount) * 100).toFixed(2) : '0.00') + '%',
+      '2025 No Coll Qty': sub.noColl2025,
+      '2026 No Coll Qty': sub.noColl2026,
     }
     if (hasOverdue) subRow['Overdue Amount'] = parseFloat(sub.overdueAmount.toFixed(2))
     wsData.push(subRow)

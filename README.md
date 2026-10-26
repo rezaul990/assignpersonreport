@@ -40,8 +40,29 @@ npm run build
 ## Column Mappings
 
 ### Main File (Collection Report)
-- Header: Row 6 (index 5), Data starts: Row 7
-- Invoice No.: Column N (index 13) — matching key
+- **Parser is now header-driven** — columns are matched by header text (case-insensitive), so blank columns or reordering won't break it.
+- Header row: auto-detected (looks for a row containing both "Plaza" and "Account No.")
+- Data starts: row immediately below the detected header
+- Matching key: **Invoice No.** (header contains "Invoice No.")
+
+**Expected logical columns (blank columns interleaved are ignored):**
+| Logical Column | Header Keyword(s) | Notes |
+|----------------|-------------------|-------|
+| Division | "division" | |
+| Area | "area" | |
+| Plaza | "plaza" | Required — used for grouping |
+| Account No. | "account no" | |
+| Customer Name | "customer name" | |
+| Product Category | "product category" | |
+| Assign Person ID | "assign person" | |
+| Invoice No. | "invoice no" | Matching key with overdue file |
+| Invoice Date | "invoice date" | |
+| Matured Date | "matured" | |
+| Per Month Schedule | "per month" | |
+| Collection Target | "collection target" | |
+| Collection Achieve | "collection achieve" | Parsed to number |
+| Collection Advance | "collection advance" | Parsed to number |
+| Total Collection | "total collection" | Falls back to Achieve + Advance |
 
 ### Overdue File
 - Header rows: 1-6, Data starts: Row 7 (index 6)

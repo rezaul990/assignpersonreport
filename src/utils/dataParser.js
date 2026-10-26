@@ -41,64 +41,179 @@ export function parseOverdueData(rows) {
   return overdueMap
 }
 
-export function parseExcelData(rows) {
-  const HEADER_ROW_INDEX = 5
-  const collectionCol = 20 // Column U - Collection Achieve
-  const collectionAdvanceCol = 22 // Column W - Collection Advance
-  const totalCollectionCol = 23 // Column X - Total Collection
-  const invoiceDateCol = 14 // Column O
+/**
+ * Parse the Account Wise Actual Card Collection Report
+ * (e.g. HireTargetAccounts.xls).
+ *
+ * The report ships with several title rows above the real column header and
+ * contains *blank columns* interleaved between the data columns. To stay
+ * robust against that (and against future column reordering) every column is
+ * resolved by matching its header text rather than by a fixed index.
+ *
+ * Logical column layout:
+ *   S/N            -> column B (index 1)            [row counter, not parsed]
+ *   Division       -> column C / index 2
+ *   Area           -> column D / index 3
+ *   Plaza          -> column E / index 4
+ *   (blank)        -> column F / index 5
+ *   Account No.    -> column G / index 6
+ *   Customer Name  -> column H / index 7
+ *   Product Cat.   -> column I / index 8
+ *   (blank)        -> column J / index 9
+ *   Assign Person  -> column K / index 10
+ *   (blank/blank)  -> columns L, M (index 11, 12)
+ *   Invoice No.    -> column N / index 13  (matching key with overdue file)
+ *   Invoice Date   -> column O / index 14
+ *   Matured Date   -> column P / index 15
+ *   Per Month Sch. -> column Q / index 16
+ *   (blank)        -> column R / index 17
+ *   Collection Tgt-> column S / index 18
+ *   (blank)        -> column T / index 19
+ *   Coll. Achieve -> column U / index 20
+ *   (blank)        -> column V / index 21
+ *   Coll. Advance -> column W / index 22
+ *   Total Coll.   -> column X / index 23
+ */
 
-  if (!rows[HEADER_ROW_INDEX] || rows[HEADER_ROW_INDEX].length === 0) {
-    throw new Error('Header row (row 6) not found.')
+/**
+ * Return the index of the first column whose header contains `keyword`
+ * (case-insensitive), or `undefined` when not found.
+ */
+function findCol(headers, keyword) {
+  const idx = headers.findIndex(h => h != null && String(h).toLowerCase().includes(keyword))
+  return idx === -1 ? undefined : idx
+}
+
+/** Coerce an Excel cell into a number (strips thousands separators/spaces). */
+function toNumber(raw) {
+  if (raw == null || raw === '') return 0
+  const cleaned = String(raw).replace(/[,\s]/g, '').trim()
+  return parseFloat(cleaned) || 0
+}
+
+/**
+ * Extract the calendar year from an Invoice Date cell.
+ * Handles Excel serial numbers, "DD-MMM-YY" / "DD-MMM-YYYY" strings, and
+ * generic date strings. Returns null when the year cannot be determined.
+ */
+function getInvoiceYear(val) {
+  if (val == null || val === '') return null
+  if (typeof val === 'number') {
+    const d = new Date((val - 25569) * 86400 * 1000)
+    if (isNaN(d.getTime())) return null
+    return d.getFullYear()
+  }
+  const s = String(val).trim()
+  const m = s.match(/(\d{1,4})$/)
+  if (m) {
+    let y = parseInt(m[1], 10)
+    if (!isNaN(y)) {
+      if (y < 100) y += 2000
+      return y
+    }
+  }
+  const d = new Date(s)
+  if (!isNaN(d.getTime())) return d.getFullYear()
+  return null
+}
+
+export function parseExcelData(rows) {
+  // --- Locate the header row ------------------------------------------------
+  // The file has 5 title rows above the real column header, so instead of a
+  // hard-coded index we detect the row that actually contains the column
+  // titles ("Plaza" + "Account No.").
+  let headerIdx = -1
+  for (let i = 0; i < rows.length; i++) {
+    const h = (rows[i] || []).map(cell =>
+      cell != null ? String(cell).toLowerCase().trim() : ''
+    )
+    if (h.includes('plaza') && h.includes('account no.')) {
+      headerIdx = i
+      break
+    }
+  }
+  if (headerIdx === -1) {
+    throw new Error('Header row with "Plaza" and "Account No." columns not found.')
   }
 
-  const headerRow = rows[HEADER_ROW_INDEX]
-  const headers = headerRow.map(cell => cell != null ? String(cell).toLowerCase().trim() : '')
-  const plazaCol = headers.findIndex(h => h && h.includes('plaza'))
+  const headerRow = rows[headerIdx].map(cell =>
+    cell != null ? String(cell).toLowerCase().trim() : ''
+  )
 
-  if (plazaCol === -1) throw new Error('Plaza column not found.')
+  const col = {
+    division:        findCol(headerRow, 'division'),
+    area:            findCol(headerRow, 'area'),
+    plaza:           findCol(headerRow, 'plaza'),
+    accountNo:       findCol(headerRow, 'account no'),
+    customerName:    findCol(headerRow, 'customer name'),
+    productCategory: findCol(headerRow, 'product category'),
+    assignPersonId:  findCol(headerRow, 'assign person'),
+    invoiceNo:       findCol(headerRow, 'invoice no'),
+    invoiceDate:     findCol(headerRow, 'invoice date'),
+    maturedDate:     findCol(headerRow, 'matured'),
+    perMonthSchedule: findCol(headerRow, 'per month'),
+    collectionTarget:  findCol(headerRow, 'collection target'),
+    collectionAchieve: findCol(headerRow, 'collection achieve'),
+    collectionAdvance: findCol(headerRow, 'collection advance'),
+    totalCollection:   findCol(headerRow, 'total collection'),
+  }
+
+  if (col.plaza === undefined) {
+    throw new Error('Plaza column not found.')
+  }
 
   const allAccountDetails = []
 
-  for (let i = HEADER_ROW_INDEX + 1; i < rows.length; i++) {
+  // --- Read data rows (everything below the header) -------------------------
+  for (let i = headerIdx + 1; i < rows.length; i++) {
     const row = rows[i]
     if (!row) continue
 
-    const plaza = row[plazaCol]
-    const rawCollection = row[collectionCol]
-    const rawAdvance = row[collectionAdvanceCol]
-    const invoiceDate = invoiceDateCol !== -1 ? row[invoiceDateCol] : null
+    const rowText = row.join(' ').toLowerCase()
 
-    let collection = 0
-    if (rawCollection != null && rawCollection !== '') {
-      const cleaned = String(rawCollection).replace(/[,\s]/g, '').trim()
-      collection = parseFloat(cleaned) || 0
+    // Skip footer / designer-credit rows printed at the end of the report and
+    // any repeated header rows.
+    if (
+      rowText.includes('designed and developed') ||
+      rowText.includes('downloaded time') ||
+      (rowText.includes('page ') && rowText.includes('of')) ||
+      rowText.includes('s / n') ||
+      rowText.includes('sale invoice') ||
+      rowText.includes('overdue')
+    ) {
+      continue
     }
 
-    let advance = 0
-    if (rawAdvance != null && rawAdvance !== '') {
-      const cleaned = String(rawAdvance).replace(/[,\s]/g, '').trim()
-      advance = parseFloat(cleaned) || 0
-    }
-
+    const plaza = col.plaza !== undefined ? row[col.plaza] : null
     if (!plaza || String(plaza).toLowerCase().trim() === 'plaza') continue
 
+    const collection = toNumber(
+      col.collectionAchieve !== undefined ? row[col.collectionAchieve] : ''
+    )
+    const advance = toNumber(
+      col.collectionAdvance !== undefined ? row[col.collectionAdvance] : ''
+    )
+    const totalRaw = col.totalCollection !== undefined ? row[col.totalCollection] : null
+
     allAccountDetails.push({
-      division: row[2] || '',           // Column C
-      area: row[3] || '',              // Column D
-      plaza: plaza,                    // Column E (by header lookup)
-      accountNo: row[5] || '',         // Column F
-      customerName: row[6] || '',      // Column G
-      productCategory: row[7] || '',   // Column H
-      assignPersonId: row[8] || '',    // Column I
-      invoiceNo: row[13] || '',        // Column N
-      invoiceDate: invoiceDate,        // Column O
-      maturedDate: row[15] || '',      // Column P
-      perMonthSchedule: row[16] || '', // Column Q
-      collectionTarget: row[18] || '', // Column S
-      collectionAchieve: collection,   // Column U
-      collectionAdvance: advance,     // Column W
-      totalCollection: row[totalCollectionCol] != null ? row[totalCollectionCol] : (collection + advance), // Column X
+      division:          row[col.division] ?? '',
+      area:              row[col.area] ?? '',
+      plaza:             plaza,
+      accountNo:         row[col.accountNo] ?? '',
+      customerName:      row[col.customerName] ?? '',
+      productCategory:   row[col.productCategory] ?? '',
+      assignPersonId:    row[col.assignPersonId] ?? '',
+      invoiceNo:         row[col.invoiceNo] ?? '',
+      invoiceDate:       col.invoiceDate !== undefined ? row[col.invoiceDate] : null,
+      invoiceYear:       getInvoiceYear(col.invoiceDate !== undefined ? row[col.invoiceDate] : null),
+      maturedDate:       row[col.maturedDate] ?? '',
+      perMonthSchedule:  row[col.perMonthSchedule] ?? '',
+      collectionTarget:  row[col.collectionTarget] ?? '',
+      collectionAchieve: collection,
+      collectionAdvance: advance,
+      // Prefer the file's own Total Collection value; fall back to Achieve+Advance.
+      totalCollection:
+        totalRaw != null && totalRaw !== '' ? toNumber(totalRaw) : (collection + advance),
     })
   }
 

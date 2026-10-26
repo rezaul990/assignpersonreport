@@ -24,7 +24,12 @@ function PersonIdTopSheetTable({ data, overdueData }) {
     const key = `${plaza}|||${personId}`
 
     if (!personGroups[key]) {
-      personGroups[key] = { plaza, personId, totalQty: 0, collectedQty: 0, targetAmount: 0, achieveAmount: 0, advanceAmount: 0, totalCollection: 0, overdueAmount: 0 }
+      personGroups[key] = {
+        plaza, personId,
+        totalQty: 0, collectedQty: 0, notCollectedQty: 0,
+        noColl2025: 0, noColl2026: 0,
+        targetAmount: 0, achieveAmount: 0, overdueAmount: 0,
+      }
     }
 
     personGroups[key].totalQty++
@@ -38,16 +43,14 @@ function PersonIdTopSheetTable({ data, overdueData }) {
       achieve = parseFloat(String(account.collectionAchieve).replace(/[,\s]/g, '')) || 0
     }
 
-    let advance = 0
-    if (account.collectionAdvance != null && account.collectionAdvance !== '') {
-      advance = parseFloat(String(account.collectionAdvance).replace(/[,\\s]/g, '')) || 0
-    }
-
     personGroups[key].targetAmount += target
     personGroups[key].achieveAmount += achieve
-    personGroups[key].advanceAmount += advance
-    personGroups[key].totalCollection += (advance + achieve)
     if (achieve > 0) personGroups[key].collectedQty++
+
+    // Year-split Not Collected Qty — derived from Invoice Date year.
+    const invYear = account.invoiceYear
+    if (achieve === 0 && invYear === 2025) personGroups[key].noColl2025++
+    if (achieve === 0 && invYear === 2026) personGroups[key].noColl2026++
 
     if (hasOverdue && account.invoiceNo) {
       personGroups[key].overdueAmount += overdueData.get(String(account.invoiceNo).trim()) || 0
@@ -58,7 +61,10 @@ function PersonIdTopSheetTable({ data, overdueData }) {
     .map(v => ({
       ...v,
       notCollectedQty: v.totalQty - v.collectedQty,
+      noColl2025: v.noColl2025,
+      noColl2026: v.noColl2026,
       percentage: ((v.collectedQty / v.totalQty) * 100).toFixed(2),
+      achievePct: v.targetAmount > 0 ? ((v.achieveAmount / v.targetAmount) * 100).toFixed(2) : '0.00',
       amountPercentage: v.targetAmount > 0 ? ((v.achieveAmount / v.targetAmount) * 100).toFixed(2) : '0.00',
     }))
     .sort((a, b) => a.plaza !== b.plaza ? a.plaza.localeCompare(b.plaza) : a.personId.localeCompare(b.personId))
@@ -73,12 +79,12 @@ function PersonIdTopSheetTable({ data, overdueData }) {
     totalQty: acc.totalQty + p.totalQty,
     collectedQty: acc.collectedQty + p.collectedQty,
     notCollectedQty: acc.notCollectedQty + p.notCollectedQty,
+    noColl2025: acc.noColl2025 + p.noColl2025,
+    noColl2026: acc.noColl2026 + p.noColl2026,
     targetAmount: acc.targetAmount + p.targetAmount,
     achieveAmount: acc.achieveAmount + p.achieveAmount,
-    advanceAmount: acc.advanceAmount + p.advanceAmount,
-    totalCollection: acc.totalCollection + p.totalCollection,
     overdueAmount: acc.overdueAmount + p.overdueAmount,
-  }), { totalQty: 0, collectedQty: 0, notCollectedQty: 0, targetAmount: 0, achieveAmount: 0, advanceAmount: 0, totalCollection: 0, overdueAmount: 0 })
+  }), { totalQty: 0, collectedQty: 0, notCollectedQty: 0, noColl2025: 0, noColl2026: 0, targetAmount: 0, achieveAmount: 0, overdueAmount: 0 })
 
   const grandPct = grandTotals.totalQty > 0 ? ((grandTotals.collectedQty / grandTotals.totalQty) * 100).toFixed(2) : '0.00'
   const grandAmtPct = grandTotals.targetAmount > 0 ? ((grandTotals.achieveAmount / grandTotals.targetAmount) * 100).toFixed(2) : '0.00'
@@ -96,9 +102,9 @@ function PersonIdTopSheetTable({ data, overdueData }) {
             <th>Coll %</th>
             <th>Target Amount</th>
             <th>Achieve Amount</th>
-            <th>Collection Advance</th>
-            <th>Total Collection</th>
-            <th>Amount %</th>
+            <th>Ach %</th>
+            <th>2025 No Coll Qty</th>
+            <th>2026 No Coll Qty</th>
             {hasOverdue && <th>Overdue Amount</th>}
           </tr>
         </thead>
@@ -108,12 +114,12 @@ function PersonIdTopSheetTable({ data, overdueData }) {
               totalQty: acc.totalQty + p.totalQty,
               collectedQty: acc.collectedQty + p.collectedQty,
               notCollectedQty: acc.notCollectedQty + p.notCollectedQty,
+              noColl2025: acc.noColl2025 + p.noColl2025,
+              noColl2026: acc.noColl2026 + p.noColl2026,
               targetAmount: acc.targetAmount + p.targetAmount,
               achieveAmount: acc.achieveAmount + p.achieveAmount,
-              advanceAmount: acc.advanceAmount + p.advanceAmount,
-              totalCollection: acc.totalCollection + p.totalCollection,
               overdueAmount: acc.overdueAmount + p.overdueAmount,
-            }), { totalQty: 0, collectedQty: 0, notCollectedQty: 0, targetAmount: 0, achieveAmount: 0, advanceAmount: 0, totalCollection: 0, overdueAmount: 0 })
+            }), { totalQty: 0, collectedQty: 0, notCollectedQty: 0, noColl2025: 0, noColl2026: 0, targetAmount: 0, achieveAmount: 0, overdueAmount: 0 })
 
             const subPct = sub.totalQty > 0 ? ((sub.collectedQty / sub.totalQty) * 100).toFixed(2) : '0.00'
             const subAmtPct = sub.targetAmount > 0 ? ((sub.achieveAmount / sub.targetAmount) * 100).toFixed(2) : '0.00'
@@ -130,9 +136,9 @@ function PersonIdTopSheetTable({ data, overdueData }) {
                     <td><PctPill value={person.percentage} /></td>
                     <td className="amt-cell" style={{ textAlign: 'right' }}>{fmt(person.targetAmount)}</td>
                     <td className="amt-cell" style={{ textAlign: 'right' }}>{fmt(person.achieveAmount)}</td>
-                    <td className="amt-cell" style={{ textAlign: 'right' }}>{fmt(person.advanceAmount)}</td>
-                    <td className="amt-cell" style={{ textAlign: 'right', fontWeight: 700 }}>{fmt(person.totalCollection)}</td>
-                    <td><PctPill value={person.amountPercentage} /></td>
+                    <td><PctPill value={person.achievePct} /></td>
+                    <td style={{ textAlign: 'center', color: '#b91c1c', fontWeight: 600 }}>{person.noColl2025}</td>
+                    <td style={{ textAlign: 'center', color: '#b91c1c', fontWeight: 600 }}>{person.noColl2026}</td>
                     {hasOverdue && <td className="amt-cell" style={{ textAlign: 'right', color: '#b91c1c', fontWeight: 700 }}>{fmt(person.overdueAmount)}</td>}
                   </tr>
                 ))}
@@ -146,9 +152,9 @@ function PersonIdTopSheetTable({ data, overdueData }) {
                   <td><PctPill value={subPct} /></td>
                   <td className="amt-cell" style={{ textAlign: 'right' }}>{fmt(sub.targetAmount)}</td>
                   <td className="amt-cell" style={{ textAlign: 'right' }}>{fmt(sub.achieveAmount)}</td>
-                  <td className="amt-cell" style={{ textAlign: 'right' }}>{fmt(sub.advanceAmount)}</td>
-                  <td className="amt-cell" style={{ textAlign: 'right', fontWeight: 700 }}>{fmt(sub.totalCollection)}</td>
                   <td><PctPill value={subAmtPct} /></td>
+                  <td style={{ textAlign: 'center', color: '#b91c1c', fontWeight: 600 }}>{sub.noColl2025}</td>
+                  <td style={{ textAlign: 'center', color: '#b91c1c', fontWeight: 600 }}>{sub.noColl2026}</td>
                   {hasOverdue && <td className="amt-cell" style={{ textAlign: 'right' }}>{fmt(sub.overdueAmount)}</td>}
                 </tr>
               </React.Fragment>
@@ -163,9 +169,9 @@ function PersonIdTopSheetTable({ data, overdueData }) {
             <td><PctPill value={grandPct} /></td>
             <td className="amt-cell" style={{ textAlign: 'right' }}>{fmt(grandTotals.targetAmount)}</td>
             <td className="amt-cell" style={{ textAlign: 'right' }}>{fmt(grandTotals.achieveAmount)}</td>
-            <td className="amt-cell" style={{ textAlign: 'right' }}>{fmt(grandTotals.advanceAmount)}</td>
-            <td className="amt-cell" style={{ textAlign: 'right', fontWeight: 700 }}>{fmt(grandTotals.totalCollection)}</td>
             <td><PctPill value={grandAmtPct} /></td>
+            <td style={{ textAlign: 'center', color: '#b91c1c', fontWeight: 600 }}>{grandTotals.noColl2025}</td>
+            <td style={{ textAlign: 'center', color: '#b91c1c', fontWeight: 600 }}>{grandTotals.noColl2026}</td>
             {hasOverdue && <td className="amt-cell" style={{ textAlign: 'right' }}>{fmt(grandTotals.overdueAmount)}</td>}
           </tr>
         </tbody>
